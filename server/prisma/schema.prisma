@@ -1,0 +1,497 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ===== USER MANAGEMENT =====
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String @default("ACCOUNTING")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  createdStores ShopifyStore[]
+
+  @@map("users")
+}
+
+// ===== SHOPIFY INTEGRATION =====
+model ShopifyStore {
+  id          String    @id @default(cuid())
+  shopDomain  String    @unique
+  accessToken String    // Encrypted
+  scope       String
+  isActive    Boolean   @default(true)
+  lastSyncAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdById String
+
+  // Relations
+  createdBy User @relation(fields: [createdById], references: [id])
+  orders    ShopifyOrder[]
+  refunds   ShopifyRefund[]
+  payouts   ShopifyPayout[]
+
+  @@map("shopify_stores")
+}
+
+model ShopifyOrder {
+  id                String    @id @default(cuid())
+  shopifyOrderId    String    @unique
+  orderNumber       String
+  customerId        String?
+  customerEmail     String?
+  totalPrice        Decimal
+  subtotalPrice     Decimal
+  totalTax          Decimal
+  currency          String    @default("USD")
+  financialStatus   String
+  fulfillmentStatus String
+  processedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  storeId           String
+
+  // Relations
+  store   ShopifyStore @relation(fields: [storeId], references: [id])
+  refunds ShopifyRefund[]
+  journalEntries JournalEntry[]
+
+  @@map("shopify_orders")
+}
+
+model ShopifyRefund {
+  id             String   @id @default(cuid())
+  shopifyRefundId String   @unique
+  orderId        String
+  amount         Decimal
+  currency       String   @default("USD")
+  reason         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  storeId        String
+
+  // Relations
+  store  ShopifyStore @relation(fields: [storeId], references: [id])
+  order  ShopifyOrder @relation(fields: [orderId], references: [id])
+  journalEntries JournalEntry[]
+
+  @@map("shopify_refunds")
+}
+
+model ShopifyPayout {
+  id             String    @id @default(cuid())
+  shopifyPayoutId String    @unique
+  amount         Decimal
+  currency       String    @default("USD")
+  status         String
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  storeId        String
+
+  // Relations
+  store   ShopifyStore @relation(fields: [storeId], references: [id])
+  reconciliationMatches ReconciliationMatch[]
+
+  @@map("shopify_payouts")
+}
+
+// ===== ACCOUNTING =====
+model Account {
+  id        String      @id @default(cuid())
+  code      String      @unique
+  name      String
+  type      String
+  parentId  String?
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  parent         Account?         @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children       Account[]        @relation("AccountHierarchy")
+  journalLines   JournalLine[]
+  reconciliationMatches ReconciliationMatch[]
+  budgets        Budget[]
+
+  @@map("accounts")
+}
+
+model JournalEntry {
+  id          String    @id @default(cuid())
+  reference   String    @unique
+  description String
+  date        DateTime
+  totalDebit  Decimal
+  totalCredit Decimal
+  isPosted    Boolean   @default(false)
+  postedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  lines JournalLine[]
+  orderId   String?
+  refundId  String?
+  arInvoiceId String?
+  order     ShopifyOrder? @relation(fields: [orderId], references: [id])
+  refund    ShopifyRefund? @relation(fields: [refundId], references: [id])
+  arInvoice ARInvoice? @relation(fields: [arInvoiceId], references: [id])
+
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id              String   @id @default(cuid())
+  journalEntryId  String
+  accountId       String
+  debit           Decimal  @default(0)
+  credit          Decimal  @default(0)
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id])
+
+  @@map("journal_lines")
+}
+
+// ===== RECONCILIATION =====
+model ReconciliationMatch {
+  id         String    @id @default(cuid())
+  payoutId   String
+  orderId    String
+  amount     Decimal
+  isMatched  Boolean   @default(false)
+  matchedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  accountId  String
+
+  // Relations
+  payout  ShopifyPayout @relation(fields: [payoutId], references: [id])
+  account Account       @relation(fields: [accountId], references: [id])
+
+  @@map("reconciliation_matches")
+}
+
+// ===== TAX MANAGEMENT =====
+model TaxRate {
+  id          String   @id @default(cuid())
+  name        String
+  rate        Decimal // e.g., 0.0825 for 8.25%
+  jurisdiction String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tax_rates")
+}
+
+// ===== EXCHANGE RATES =====
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  fromCurrency String
+  toCurrency   String
+  rate        Decimal
+  date        DateTime
+  createdAt   DateTime @default(now())
+
+  @@unique([fromCurrency, toCurrency, date])
+  @@map("exchange_rates")
+}
+
+// ===== SYSTEM LOGS =====
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     String   // ERROR, WARN, INFO, DEBUG
+  message   String
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@map("system_logs")
+}
+
+// ===== WEBHOOK EVENTS =====
+model WebhookEvent {
+  id         String   @id @default(cuid())
+  topic      String
+  shopDomain String
+  data       String
+  processed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("webhook_events")
+}
+
+// ===== CUSTOMERS (AR) =====
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?  @unique
+  phone         String?
+  billingAddress String?
+  creditLimit   Decimal? @default(0)
+  paymentTerms  Int      @default(30) // days
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  invoices ARInvoice[]
+  payments ARPayment[]
+
+  @@map("customers")
+}
+
+// ===== VENDORS (AP) =====
+model Vendor {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?  @unique
+  phone         String?
+  address       String?
+  paymentTerms  Int      @default(30) // days
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  bills    APBill[]
+  payments APPayment[]
+
+  @@map("vendors")
+}
+
+// ===== AR INVOICES =====
+model ARInvoice {
+  id           String   @id @default(cuid())
+  invoiceNumber String  @unique
+  customerId   String
+  issueDate    DateTime
+  dueDate      DateTime
+  amount       Decimal
+  taxAmount    Decimal  @default(0)
+  totalAmount  Decimal
+  currency     String   @default("USD")
+  status       String   @default("DRAFT") // DRAFT, SENT, PARTIAL, PAID, OVERDUE
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id])
+  payments ARPayment[]
+  journalEntries JournalEntry[]
+
+  @@map("ar_invoices")
+}
+
+// ===== AR PAYMENTS =====
+model ARPayment {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  customerId   String
+  amount       Decimal
+  paymentDate  DateTime
+  paymentMethod String  @default("BANK_TRANSFER")
+  reference    String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  invoice  ARInvoice @relation(fields: [invoiceId], references: [id])
+  customer Customer  @relation(fields: [customerId], references: [id])
+
+  @@map("ar_payments")
+}
+
+// ===== AP BILLS =====
+model APBill {
+  id          String   @id @default(cuid())
+  billNumber  String   @unique
+  vendorId    String
+  issueDate   DateTime
+  dueDate     DateTime
+  amount      Decimal
+  taxAmount   Decimal  @default(0)
+  totalAmount Decimal
+  currency    String   @default("USD")
+  status      String   @default("UNPAID") // UNPAID, PARTIAL, PAID
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  vendor   Vendor @relation(fields: [vendorId], references: [id])
+  payments APPayment[]
+
+  @@map("ap_bills")
+}
+
+// ===== AP PAYMENTS =====
+model APPayment {
+  id           String   @id @default(cuid())
+  billId       String
+  vendorId     String
+  amount       Decimal
+  paymentDate  DateTime
+  paymentMethod String  @default("BANK_TRANSFER")
+  reference    String?
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  bill   APBill @relation(fields: [billId], references: [id])
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@map("ap_payments")
+}
+
+// ===== FIXED ASSETS =====
+model FixedAsset {
+  id                 String    @id @default(cuid())
+  assetNumber        String    @unique
+  name               String
+  category           String    // EQUIPMENT, VEHICLE, BUILDING, etc.
+  purchaseDate       DateTime
+  purchasePrice      Decimal
+  usefulLifeMonths   Int
+  depreciationMethod String    @default("STRAIGHT_LINE") // STRAIGHT_LINE, DECLINING_BALANCE
+  salvageValue       Decimal   @default(0)
+  accumulatedDep     Decimal   @default(0)
+  bookValue          Decimal
+  location           String?
+  serialNumber       String?
+  disposalDate       DateTime?
+  disposalAmount     Decimal?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  depreciationSchedule DepreciationSchedule[]
+
+  @@map("fixed_assets")
+}
+
+// ===== DEPRECIATION SCHEDULE =====
+model DepreciationSchedule {
+  id            String   @id @default(cuid())
+  assetId       String
+  month         DateTime
+  depAmount     Decimal
+  accumulated   Decimal
+  bookValue     Decimal
+  isPosted      Boolean  @default(false)
+  journalEntryId String?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  asset FixedAsset @relation(fields: [assetId], references: [id])
+
+  @@unique([assetId, month])
+  @@map("depreciation_schedule")
+}
+
+// ===== BUDGETS =====
+model Budget {
+  id         String   @id @default(cuid())
+  accountId  String
+  fiscalYear Int
+  month      Int      // 1-12
+  amount     Decimal
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId, fiscalYear, month])
+  @@map("budgets")
+}
+
+// ===== AUDIT LOGS =====
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String   // CREATE, UPDATE, DELETE, POST, VOID
+  tableName  String
+  recordId   String
+  oldValue   String?
+  newValue   String?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+// ===== INVENTORY ITEMS =====
+model InventoryItem {
+  id              String   @id @default(cuid())
+  sku             String   @unique
+  name            String
+  category        String?
+  unitCost        Decimal  @default(0)
+  quantityOnHand  Int      @default(0)
+  valuationMethod String   @default("FIFO") // FIFO, WEIGHTED_AVG
+  reorderPoint    Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  movements InventoryMovement[]
+
+  @@map("inventory_items")
+}
+
+// ===== INVENTORY MOVEMENTS =====
+model InventoryMovement {
+  id          String   @id @default(cuid())
+  itemId      String
+  type        String   // IN, OUT, ADJUSTMENT
+  quantity    Int
+  unitCost    Decimal
+  totalCost   Decimal
+  reference   String?  // Order ID, etc.
+  date        DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  item InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@map("inventory_movements")
+}
+
+// ===== PERIOD LOCKS =====
+model PeriodLock {
+  id         String   @id @default(cuid())
+  fiscalYear Int
+  month      Int      // 1-12
+  lockedBy   String?
+  lockedAt   DateTime?
+  notes      String?
+
+  @@unique([fiscalYear, month])
+  @@map("period_locks")
+}

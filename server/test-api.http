@@ -1,0 +1,47 @@
+### Health Check
+GET http://localhost:3001/health
+
+### Register User
+POST http://localhost:3001/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "test123456",
+  "name": "Test User",
+  "role": "ACCOUNTING"
+}
+
+### Login
+POST http://localhost:3001/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@shopifygenie.com",
+  "password": "admin123"
+}
+
+### Get Current User (requires token from login)
+GET http://localhost:3001/api/auth/me
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Get Accounts
+GET http://localhost:3001/api/accounting/accounts
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Get Journal Entries
+GET http://localhost:3001/api/accounting/journals
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Get Dashboard Stats
+GET http://localhost:3001/api/reports/dashboard
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Get Trial Balance
+GET http://localhost:3001/api/reports/trial-balance
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Get Reconciliation Data
+GET http://localhost:3001/api/reconciliation
+Authorization: Bearer YOUR_TOKEN_HERE
+
