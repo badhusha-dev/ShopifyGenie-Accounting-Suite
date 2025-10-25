@@ -14,7 +14,7 @@ import JournalEntries from './pages/accounting/JournalEntries'
 import ShopifyStores from './pages/shopify/Stores'
 import Orders from './pages/shopify/Orders'
 import Reconciliation from './pages/reconciliation/Reconciliation'
-import Reports from './pages/reports/Reports'
+import ReportsPro from './pages/reports/ReportsPro'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 
@@ -62,7 +62,7 @@ function App() {
         <Route path="reconciliation" element={<Reconciliation />} />
         
         {/* Reports routes */}
-        <Route path="reports" element={<Reports />} />
+        <Route path="reports" element={<ReportsPro />} />
         
         {/* Settings */}
         <Route path="settings" element={<Settings />} />

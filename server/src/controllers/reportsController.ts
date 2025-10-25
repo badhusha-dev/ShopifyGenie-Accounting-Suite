@@ -423,3 +423,83 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Advanced Reports
+import { 
+  getCashFlowIndirect, 
+  getTaxSummary as getTaxSummaryService, 
+  getExpenseBreakdown as getExpenseBreakdownService,
+  getRevenueBreakdown
+} from '../services/reportService';
+
+export const getCashFlow = async (req: Request, res: Response) => {
+  try {
+    const { from, to } = req.query as any;
+    const data = await getCashFlowIndirect(from, to);
+    
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logger.error('Get cash flow error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate cash flow statement',
+    });
+  }
+};
+
+export const getTaxSummaryCtrl = async (req: Request, res: Response) => {
+  try {
+    const { from, to } = req.query as any;
+    const data = await getTaxSummaryService(from, to);
+    
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logger.error('Get tax summary error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate tax summary',
+    });
+  }
+};
+
+export const getExpenseBreakdownCtrl = async (req: Request, res: Response) => {
+  try {
+    const { from, to, top } = req.query as any;
+    const data = await getExpenseBreakdownService(from, to, top ? Number(top) : 10);
+    
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logger.error('Get expense breakdown error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate expense breakdown',
+    });
+  }
+};
+
+export const getRevenueBreakdownCtrl = async (req: Request, res: Response) => {
+  try {
+    const { from, to, top } = req.query as any;
+    const data = await getRevenueBreakdown(from, to, top ? Number(top) : 10);
+    
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    logger.error('Get revenue breakdown error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate revenue breakdown',
+    });
+  }
+};

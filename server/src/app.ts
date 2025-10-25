@@ -17,6 +17,7 @@ import accountingRoutes from './routes/accounting';
 import reportsRoutes from './routes/reports';
 import reconciliationRoutes from './routes/reconciliation';
 import advancedReportsRoutes from './routes/advancedReports';
+import settingsRoutes from './routes/settings';
 
 // Load environment variables
 dotenv.config({ path: require('path').join(__dirname, '../../.env') });
@@ -171,6 +172,7 @@ app.use('/api/accounting', accountingRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/reconciliation', reconciliationRoutes);
 app.use('/api/reports/advanced', advancedReportsRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // ===== STATIC FILES =====
 app.use('/uploads', express.static('uploads'));

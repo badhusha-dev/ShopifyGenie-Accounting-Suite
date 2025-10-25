@@ -495,3 +495,44 @@ model PeriodLock {
   @@unique([fiscalYear, month])
   @@map("period_locks")
 }
+
+// ===== SYSTEM SETTINGS =====
+model Setting {
+  id                     String   @id @default(cuid())
+  // Company Information
+  companyName            String?
+  companyAddress         String?
+  companyPhone           String?
+  companyEmail           String?
+  companyTaxId           String?
+  baseCurrency           String   @default("MYR")
+  fiscalYearStart        DateTime?
+  
+  // Accounting Defaults
+  defaultSalesAccountId  String?
+  defaultCOGSAccountId   String?
+  defaultTaxAccountId    String?
+  defaultFeeAccountId    String?
+  defaultARAccountId     String?
+  defaultAPAccountId     String?
+  defaultCashAccountId   String?
+  
+  // Shopify Integration
+  shopDomain             String?
+  shopifyApiKey          String?
+  shopifyApiSecret       String?
+  syncFrequency          String   @default("daily")
+  autoSync               Boolean  @default(false)
+  webhooksEnabled        Boolean  @default(true)
+  
+  // System Preferences
+  dateFormat             String   @default("YYYY-MM-DD")
+  timeZone               String   @default("Asia/Kuala_Lumpur")
+  enableAuditLog         Boolean  @default(true)
+  requireApproval        Boolean  @default(false)
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@map("settings")
+}
